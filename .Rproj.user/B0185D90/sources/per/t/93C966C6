@@ -1,0 +1,24 @@
+{
+    "id": "93C966C6",
+    "path": "F:/R-Shiny Project/COVID-19_Analysis (2)/COVID-19_Analysis/server.R",
+    "project_path": "server.R",
+    "type": "r_source",
+    "hash": "3243265100",
+    "contents": "",
+    "dirty": false,
+    "created": 1606402446673.0,
+    "source_on_save": false,
+    "relative_order": 3,
+    "properties": {
+        "cursorPosition": "323,27",
+        "scrollLine": "320"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1606764443,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1606764443579,
+    "read_only": false,
+    "read_only_alternatives": []
+}

@@ -1,0 +1,168 @@
+#---------------------------------------------------------DASH BOARD-----------------------------------------------------
+library(shiny)
+library(shinydashboard)
+# Define UI for application that draws a histogram
+
+
+sidebar <- dashboardSidebar(
+  sidebarMenu(
+    menuItem("Dashboard", tabName = "dashboard", icon = icon("dashboard")),
+    menuItem("Map", icon = icon("map"), tabName = "map"),
+    menuItem("Analysis", icon = icon("th"), tabName = "analysis" ),
+    menuItem("Plots", icon = icon("chart"), tabName = "plots"),
+    menuItem("Correlation", icon = icon("chart"), tabName = "correlation")
+  ),
+  width = 180)
+
+#----------------------------------------------------DASHBOARD BODY---------------------------------------------------------
+body <- dashboardBody(tags$head(tags$style(HTML('.content-wrapper,.right-side{background-color:#c4c4c4}'))),
+                      tabItems(
+                        tabItem(tabName = "dashboard", 
+                                fluidRow(
+                                  valueBoxOutput("rate",width = 3),
+                                  valueBoxOutput("rate1",width = 3),
+                                  valueBoxOutput("rate2",width = 3),
+                                  valueBoxOutput("rate3",width = 3)
+                                ),
+                                fluidRow(dataTableOutput("fullTable"))
+                        ),
+                        #----------------------------------------------Graph ploting parts-----------------------------FROM    
+                      tabItem(tabName = "map",
+                                fluidRow(
+                                    leafletOutput("overview_map")
+                                )
+                      ),
+                      
+                      tabItem(tabName = "analysis",
+                              fluidRow(
+                                box(width=6,
+                                    title = "Countries", solidHeader = TRUE, status = "primary",
+                                    background = "blue",
+                                    uiOutput("selectize_casesByCountries")
+                                )
+                              ),
+                              
+                              fluidRow(
+                                column(width = 12,
+                                       
+                                       box(width = 6, 
+                                           title = "Countries with New Confirmed Cases", solidHeader = TRUE, status = "warning",
+                                           #background = "yellow",
+                                           plotOutput("Plot_Confirmed")
+                                       ),       
+                                       box(width = 6,
+                                           title = "Countries with Recovered Cases", solidHeader = TRUE, status = "primary",
+                                           #background = "blue",
+                                           plotOutput("Plot_Recovered")
+                                       )
+                                ),
+                                column(width = 12,
+                                       
+                                       box(width =6,
+                                           title = "Countries with Deceased Cases", solidHeader = TRUE, status = "danger",
+                                           #background = "red",
+                                           plotOutput("Plot_Deceased")
+                                       ),
+                                       box(width=6,
+                                           title = "Countries with Active Cases", solidHeader = TRUE, status = "success",
+                                           #background = "green",
+                                           plotOutput("Plot_Active")
+                                       )
+                                       
+                                       #__________________________________________EXP_______________________________________________________________________________________   
+                                       
+                                       
+                                       
+                                ),
+                                column(width = 12,
+                                    
+                                       box(width = 12, 
+                                           sliderInput(inputId = "bins",
+                                                                   label = "Number of Countries:",
+                                                                   min = 1,
+                                                                   max = 30,
+                                                                   value = 10),
+                                          plotOutput("plot_population")
+                                       )
+                                ),
+                                column(width = 12,
+                                       
+                                       box(width = 12,
+                                           sliderInput(inputId = "bins2",
+                                                       label = "Number of Countries:",
+                                                       min = 1,
+                                                       max = 30,
+                                                       value = 10),
+                                           
+                                           
+                                           plotOutput("plot_deathvscases")
+                                       )
+                                )
+                              )
+                      ),
+                      tabItem(tabName = "plots",
+                              fluidRow(),
+                              fluidRow(
+                                column(width = 12,
+                                       
+                                       box(width = 4,
+                                           dateInput("start_date",
+                                                     h5("Start Date"),
+                                                     format = "yyyy-mm-dd",
+                                                     value="2020-01-01",
+                                                     min="2020-01-01",
+                                                     max="2020-12-1")
+                                           
+                                       ),       
+                                       box(width = 4,
+                                           dateInput("end_date",
+                                                     h5("End Date"),
+                                                     format="yyyy-mm-dd",
+                                                     value="2020-01-30",
+                                                     min="2020-01-01",
+                                                     max="2020-12-1")
+                                           
+                                           
+                                       ),
+                                       box(width = 4,
+                                           uiOutput("casesByCountries")
+                                           
+                                           
+                                       )
+                                       
+                                       
+                                )
+                              ),
+                              fluidRow(box(width=12,title="Confirmed Cases:", color="red" , title_side="top right",column(width = 12,plotOutput("plot_conf",width = "100%",height = "400px")))),
+                              fluidRow(box(width=12,title="Recovered Cases:", color="green" , title_side="top right",column(width = 12,plotOutput("plot_dece",width = "100%",height = "400px")))),
+                              fluidRow(box(width=12,title="Active Cases:", color="blue" , title_side="top right",column(width = 12,plotOutput("plot_reco",width = "100%",height = "400px")))),
+                              fluidRow(box(width=6, uiOutput("selectize_forline"))),
+                              fluidRow(box(width = "100%",height = "400px",
+                                           plotOutput("linechart")))
+                      
+                              ),
+                      
+                      #Tab for correlation
+                      tabItem(tabName = "correlation",
+                              
+                        
+                              plotOutput("Heatmap")
+                      )
+                    )
+)
+
+
+header <- dashboardHeader(
+  title = "COVID-19"
+  
+  
+)
+
+
+# Put them together into a dashboardPage
+
+ui<-dashboardPage(skin = 'purple',
+                  header,
+                  sidebar,
+                  body
+)

@@ -1,0 +1,673 @@
+#
+# This is a Shiny web application. You can run the application by clicking
+# the 'Run App' button above.
+#
+# Find out more about building applications with Shiny here:
+#
+#    http://shiny.rstudio.com/
+#
+
+library("shiny")
+library("shinydashboard")
+library("tidyverse")
+library("leaflet")
+library("plotly")
+library("DT")
+library("fs")
+library("shinythemes")
+library('wbstats')
+library(dashboardthemes)
+
+#------------------------------------DATA ACCESS AND CLEANING-----------------------------------------------------------------------------
+
+
+data_confirmed<-read.csv("C:/Users/ArulSamy/Downloads/COVID-19-master/COVID-19-master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv",sep=',', head=TRUE,check.names =FALSE )
+data_deceased<-read.csv("C:/Users/ArulSamy/Downloads/COVID-19-master/COVID-19-master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv",sep=',', head=TRUE,check.names =FALSE)
+data_recovered<-read.csv("C:/Users/ArulSamy/Downloads/COVID-19-master/COVID-19-master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv",sep=',', head=TRUE,check.names =FALSE)
+##View(data_con)
+
+current_date <- as.Date(names(data_confirmed)[ncol(data_confirmed)], format = "%m/%d/%y")
+changed_date <- file_info("data/covid19_data.zip")$change_time
+
+# Get evolution data by country
+data_confirmed_sub <- data_confirmed %>%
+    pivot_longer(names_to = "date", cols = 5:ncol(data_confirmed)) %>%
+    group_by(`Province/State`, `Country/Region`, date, Lat, Long) %>%
+    summarise("confirmed" = sum(value, na.rm = T))
+
+data_recovered_sub <- data_recovered %>%
+    pivot_longer(names_to = "date", cols = 5:ncol(data_recovered)) %>%
+    group_by(`Province/State`, `Country/Region`, date, Lat, Long) %>%
+    summarise("recovered" = sum(value, na.rm = T))
+
+data_deceased_sub <- data_deceased %>%
+    pivot_longer(names_to = "date", cols = 5:ncol(data_deceased)) %>%
+    group_by(`Province/State`, `Country/Region`, date, Lat, Long) %>%
+    summarise("deceased" = sum(value, na.rm = T))
+
+data_evolution <- data_confirmed_sub %>%
+    full_join(data_deceased_sub) %>%
+    ungroup() %>%
+    mutate(date = as.Date(date, "%m/%d/%y")) %>%
+    arrange(date) %>%
+    group_by(`Province/State`, `Country/Region`, Lat, Long) %>%
+    mutate(
+        recovered = lag(confirmed, 14, default = 0) - deceased,
+        recovered = ifelse(recovered > 0, recovered, 0),
+        active = confirmed - recovered - deceased
+    ) %>%
+    pivot_longer(names_to = "var", cols = c(confirmed, recovered, deceased, active)) %>%
+    ungroup()
+
+# Calculating new cases
+data_evolution <- data_evolution %>%
+    group_by(`Province/State`, `Country/Region`) %>%
+    mutate(value_new = value - lag(value, 4, default = 0)) %>%
+    ungroup()
+population                                                            <- wb(country = "countries_only", indicator = "SP.POP.TOTL", startdate = 2018, enddate = 2020) %>%
+  select(country, value) %>%
+  rename(population = value)
+countryNamesPop                                                       <- c("Brunei Darussalam", "Congo, Dem. Rep.", "Congo, Rep.", "Czech Republic",
+                                                                           "Egypt, Arab Rep.", "Iran, Islamic Rep.", "Korea, Rep.", "St. Lucia", "West Bank and Gaza", "Russian Federation",
+                                                                           "Slovak Republic", "United States", "St. Vincent and the Grenadines", "Venezuela, RB")
+countryNamesDat                                                       <- c("Brunei", "Congo (Kinshasa)", "Congo (Brazzaville)", "Czechia", "Egypt", "Iran", "Korea, South",
+                                                                           "Saint Lucia", "occupied Palestinian territory", "Russia", "Slovakia", "US", "Saint Vincent and the Grenadines", "Venezuela")
+population[which(population$country %in% countryNamesPop), "country"] <- countryNamesDat
+noDataCountries <- data.frame(
+  country    = c("Cruise Ship", "Guadeloupe", "Guernsey", "Holy See", "Jersey", "Martinique", "Reunion", "Taiwan*"),
+  population = c(3700, 395700, 63026, 800, 106800, 376480, 859959, 23780452)
+)
+population      <- bind_rows(population, noDataCountries)
+
+data_evolution <- data_evolution %>%
+  left_join(population, by = c("Country/Region" = "country"))
+#---------------------------------------------------------DASH BOARD-----------------------------------------------------
+
+# Define UI for application that draws a histogram
+
+
+sidebar <- dashboardSidebar(
+    sidebarMenu(
+        menuItem("Dashboard", tabName = "dashboard", icon = icon("dashboard")),
+        menuItem("Widgets", icon = icon("th"), tabName = "widgets"),
+        menuItem("plots", icon = icon("th"), tabName = "plots")         
+                
+    ),
+    width = 180
+   )
+
+#----------------------------------------------------DASHBOARD BODY---------------------------------------------------------
+body <- dashboardBody(shinyDashboardThemes(
+  theme = "flat_red"
+),tags$head(tags$style(HTML('.content-wrapper,.right-side{background-color:#c4c4c4}'))),
+    tabItems(
+        tabItem(tabName = "dashboard", fluidRow(
+          valueBoxOutput("rate",width = 3),
+          valueBoxOutput("rate1",width = 3),
+          valueBoxOutput("rate2",width = 3),
+          valueBoxOutput("rate3",width = 3)
+        ),
+             fluidRow(dataTableOutput("fullTable"))
+        ),
+    #----------------------------------------------Graph ploting parts-----------------------------FROM    
+        tabItem(tabName = "widgets",
+                fluidRow(leafletOutput("bar1", height = 500)),
+                fluidRow(
+                  column(width = 12,
+                        
+                         box(width = 6,
+                             plotOutput("Plot")
+                           
+                         ),       
+                         box(width = 6,
+                             plotOutput("Plot1")
+                             
+                             
+                         )
+                  ),
+                  column(width = 12,
+                         
+                         box(width =6,
+                             plotOutput("Plot2")
+                            
+                           
+                         ),
+                         box(width=6,
+                             plotOutput("Plot3")
+                             
+                             
+                         ),
+                         
+#__________________________________________EXP_______________________________________________________________________________________   
+                         
+                         box(width=6,
+                             uiOutput("selectize_casesByCountries")
+                             
+#____________________________________________________________________________________________________________________________________                             
+                         ),
+                         box(width=6,
+                             
+                             
+                             
+                         )
+                        
+                  ),
+                  column(width = 12,
+                         
+                         box(width = 12,
+                             renderPlotly("case_evolution")
+                             
+                         )
+                  )
+    #---------------------------------------------END plot--------------------------------------------------
+                              )
+        ),
+tabItem(tabName = "plots",
+        fluidRow(),
+        fluidRow(
+          column(width = 12,
+                 
+                 box(width = 4,
+                     dateInput("start_date",
+                               h5("Start Date"),
+                               format = "yyyy-mm-dd",
+                               value="2020-01-01",
+                               min="2020-01-01",
+                               max="2020-12-1")
+                     
+                 ),       
+                 box(width = 4,
+                     dateInput("end_date",
+                               h5("End Date"),
+                               format="yyyy-mm-dd",
+                               value="2020-01-30",
+                               min="2020-01-01",
+                               max="2020-12-1")
+                     
+                     
+                 ),
+                 box(width = 4,
+                     uiOutput("casesByCountries")
+                     
+                     
+                 )
+                 
+                 
+           )
+         ),
+        fluidRow(box(width=12,title="Confirmed Cases:", color="red" , title_side="top right",column(width = 12,plotOutput("plot_conf",width = "100%",height = "400px")))),
+        fluidRow(box(width=12,title="Recovered Cases:", color="green" , title_side="top right",column(width = 12,plotOutput("plot_dece",width = "100%",height = "400px")))),
+        fluidRow(box(width=12,title="Active Cases:", color="blue" , title_side="top right",column(width = 12,plotOutput("plot_reco",width = "100%",height = "400px"))))
+       )
+    )
+)
+
+
+
+
+header <- dashboardHeader(
+    title = "COVID-19 TRACKER"
+     
+    
+    
+    
+    
+    
+    
+)
+
+# Put them together into a dashboardPage
+
+
+ui<-dashboardPage(
+    header,
+    sidebar,
+    body
+)
+
+
+
+
+# Define server logic required to draw a histogram
+
+#----------------------------------------SERVER------------------------------------------------------
+
+
+server <- function(input, output) {
+
+    
+
+#------------------------------------TABLE DATA-------------------------------------------------------------------------
+    
+
+    getFullTableData <- function(groupBy) {
+        padding_left <- max(str_length(data_evolution$value_new), na.rm = TRUE)
+        data         <- data_evolution %>%
+            filter(date == current_date) %>%
+            pivot_wider(names_from = var, values_from = c(value, value_new)) %>%
+            select(-date, -Lat, -Long) %>%
+            add_row(
+                "Province/State"      = "World",
+                "Country/Region"      = "World",
+                
+                
+                "value_confirmed"     = sum(.$value_confirmed, na.rm = T),
+                "value_new_confirmed" = sum(.$value_new_confirmed, na.rm = T),
+                "value_recovered"     = sum(.$value_recovered, na.rm = T),
+                "value_new_recovered" = sum(.$value_new_recovered, na.rm = T),
+                "value_deceased"      = sum(.$value_deceased, na.rm = T),
+                "value_new_deceased"  = sum(.$value_new_deceased, na.rm = T),
+                "value_active"        = sum(.$value_active, na.rm = T),
+                "value_new_active"    = sum(.$value_new_active, na.rm = T)
+            ) %>%
+            group_by(!!sym(groupBy)) %>%
+            summarise(
+                confirmed_total     = sum(value_confirmed, na.rm = T),
+                confirmed_new       = sum(value_new_confirmed, na.rm = T),
+                confirmed_totalNorm = round(sum(value_confirmed, na.rm = T)),
+                recovered_total     = sum(value_recovered, na.rm = T),
+                recovered_new       = sum(value_new_recovered, na.rm = T),
+                deceased_total      = sum(value_deceased, na.rm = T),
+                deceased_new        = sum(value_new_deceased, na.rm = T),
+                active_total        = sum(value_active, na.rm = T),
+                active_new          = sum(value_new_active, na.rm = T),
+                active_totalNorm    =round(sum(value_active, na.rm = T))
+            ) %>%
+            mutate(
+                "confirmed_newPer" = confirmed_new / (confirmed_total - confirmed_new) * 100,
+                "recovered_newPer" = recovered_new / (recovered_total - recovered_new) * 100,
+                "deceased_newPer"  = deceased_new / (deceased_total - deceased_new) * 100,
+                "active_newPer"    = active_new / (active_total - active_new) * 100
+            ) %>%
+            mutate_at(vars(contains('_newPer')), list(~na_if(., Inf))) %>%
+            mutate_at(vars(contains('_newPer')), list(~na_if(., 0))) %>%
+            mutate(
+                confirmed_new = str_c(str_pad(confirmed_new, width = padding_left, side = "left", pad = "0"), "|",
+                                      confirmed_new, if_else(!is.na(confirmed_newPer), sprintf(" (%+.2f %%)", confirmed_newPer), "")),
+                recovered_new = str_c(str_pad(recovered_new, width = padding_left, side = "left", pad = "0"), "|",
+                                      recovered_new, if_else(!is.na(recovered_newPer), sprintf(" (%+.2f %%)", recovered_newPer), "")),
+                deceased_new  = str_c(str_pad(deceased_new, width = padding_left, side = "left", pad = "0"), "|",
+                                      deceased_new, if_else(!is.na(deceased_newPer), sprintf(" (%+.2f %%)", deceased_newPer), "")),
+                active_new    = str_c(str_pad(active_new, width = padding_left, side = "left", pad = "0"), "|",
+                                      active_new, if_else(!is.na(active_newPer), sprintf(" (%+.2f %%)", active_newPer), ""))
+            ) %>%
+            as.data.frame()
+    }
+   # ----------------------------------------------------------------------------------------------------------
+      getFullTableData1 <- function(groupBy) {
+        padding_left <- max(str_length(data_evolution$value_new), na.rm = TRUE)
+        data         <- data_evolution %>%
+          filter(date == current_date) %>%
+          pivot_wider(names_from = var, values_from = c(value, value_new)) %>%
+          select(-date, -Lat, -Long) %>%
+          add_row(
+            "Province/State"      = "World",
+            "Country/Region"      = "World",
+            "population"          = 7800000000,
+            "value_confirmed"     = sum(.$value_confirmed, na.rm = T),
+            "value_new_confirmed" = sum(.$value_new_confirmed, na.rm = T),
+            "value_recovered"     = sum(.$value_recovered, na.rm = T),
+            "value_new_recovered" = sum(.$value_new_recovered, na.rm = T),
+            "value_deceased"      = sum(.$value_deceased, na.rm = T),
+            "value_new_deceased"  = sum(.$value_new_deceased, na.rm = T),
+            "value_active"        = sum(.$value_active, na.rm = T),
+            "value_new_active"    = sum(.$value_new_active, na.rm = T)
+          ) %>%
+          group_by(!!sym(groupBy)) %>%
+          summarise(
+            confirmed_total     = sum(value_confirmed, na.rm = T),
+            confirmed_new       = sum(value_new_confirmed, na.rm = T),
+            confirmed_totalNorm = round(sum(value_confirmed, na.rm = T) / max(population,na.rm = T) * 100000, 2),
+            recovered_total     = sum(value_recovered, na.rm = T),
+            recovered_new       = sum(value_new_recovered, na.rm = T),
+            deceased_total      = sum(value_deceased, na.rm = T),
+            deceased_new        = sum(value_new_deceased, na.rm = T),
+            active_total        = sum(value_active, na.rm = T),
+            active_new          = sum(value_new_active, na.rm = T),
+            active_totalNorm    = round(sum(value_active, na.rm = T) / max(population,na.rm = T) * 100000, 2)
+          ) %>%
+          mutate(
+            "confirmed_newPer" = confirmed_new / (confirmed_total - confirmed_new) * 100,
+            "recovered_newPer" = recovered_new / (recovered_total - recovered_new) * 100,
+            "deceased_newPer"  = deceased_new / (deceased_total - deceased_new) * 100,
+            "active_newPer"    = active_new / (active_total - active_new) * 100
+          ) %>%
+          mutate_at(vars(contains('_newPer')), list(~na_if(., Inf))) %>%
+          mutate_at(vars(contains('_newPer')), list(~na_if(., 0))) %>%
+          mutate(
+            confirmed_new = str_c(str_pad(confirmed_new, width = padding_left, side = "left", pad = "0"), "|",
+                                  confirmed_new, if_else(!is.na(confirmed_newPer), sprintf(" (%+.2f %%)", confirmed_newPer), "")),
+            recovered_new = str_c(str_pad(recovered_new, width = padding_left, side = "left", pad = "0"), "|",
+                                  recovered_new, if_else(!is.na(recovered_newPer), sprintf(" (%+.2f %%)", recovered_newPer), "")),
+            deceased_new  = str_c(str_pad(deceased_new, width = padding_left, side = "left", pad = "0"), "|",
+                                  deceased_new, if_else(!is.na(deceased_newPer), sprintf(" (%+.2f %%)", deceased_newPer), "")),
+            active_new    = str_c(str_pad(active_new, width = padding_left, side = "left", pad = "0"), "|",
+                                  active_new, if_else(!is.na(active_newPer), sprintf(" (%+.2f %%)", active_newPer), ""))
+          ) %>%
+          
+          as.data.frame()
+      }
+  #------------------------------------------------------------------------------ ----------------------------- 
+    
+    output$fullTable <- renderDataTable({
+        data       <- getFullTableData1("Country/Region")
+        columNames <- c(
+            "Country",
+            "Total Confirmed",
+            "New Confirmed",
+            "Total Confirmed <br>(per 100k)",
+            "Total Estimated Recoveries",
+            "New Estimated Recoveries",
+            "Total Deceased",
+            "New Deceased",
+            "Total Active",
+            "New Active",
+            "Total Active <br>(per 100k)")
+        datatable(
+            data,
+            rownames  = FALSE,
+            colnames  = columNames,
+            escape    = FALSE,
+            selection = "none",
+            options   = list(
+                pageLength     = -1,
+                order          = list(8, "desc"),
+                scrollX        = TRUE,
+                scrollY        = "calc(100vh - 250px)",
+                scrollCollapse = TRUE,
+                dom            = "ft",
+                server         = FALSE,
+                columnDefs     = list(
+                    list(
+                        targets = c(2, 5, 7, 9),
+                        render  = JS(
+                            "function(data, type, row, meta) {
+              if (data != null) {
+                split = data.split('|')
+                if (type == 'display') {
+                  return split[1];
+                } else {
+                  return split[0];
+                }
+              }
+            }"
+                        )
+                    ),
+                    list(className = 'dt-right', targets = 1:ncol(data) - 1),
+                    list(width = '100px', targets = 0),
+                    list(visible = FALSE, targets = 11:14)
+                )
+            )
+        ) %>%
+            formatStyle(
+                columns    = "Country/Region",
+                fontWeight = "bold"
+            ) %>%
+            formatStyle(
+                columns         = "confirmed_new",
+                valueColumns    = "confirmed_newPer",
+                backgroundColor = styleInterval(c(10, 20, 33, 50, 75), c("NULL", "#FFE5E5", "#FFB2B2", "#FF7F7F", "#FF4C4C", "#983232")),
+                color           = styleInterval(75, c("#000000", "#FFFFFF"))
+            ) %>%
+            formatStyle(
+                columns         = "deceased_new",
+                valueColumns    = "deceased_newPer",
+                backgroundColor = styleInterval(c(10, 20, 33, 50, 75), c("NULL", "#FFE5E5", "#FFB2B2", "#FF7F7F", "#FF4C4C", "#983232")),
+                color           = styleInterval(75, c("#000000", "#FFFFFF"))
+            ) %>%
+            formatStyle(
+                columns         = "active_new",
+                valueColumns    = "active_newPer",
+                backgroundColor = styleInterval(c(-33, -20, -10, 10, 20, 33, 50, 75), c("#66B066", "#99CA99", "#CCE4CC", "NULL", "#FFE5E5", "#FFB2B2", "#FF7F7F", "#FF4C4C", "#983232")),
+                color           = styleInterval(75, c("#000000", "#FFFFFF"))
+            ) %>%
+            formatStyle(
+                columns         = "recovered_new",
+                valueColumns    = "recovered_newPer",
+                backgroundColor = styleInterval(c(10, 20, 33), c("NULL", "#CCE4CC", "#99CA99", "#66B066"))
+            )
+    })
+
+    
+    output$bar1 <- renderLeaflet({
+        
+        
+      x <-data.confirmed
+      x$confirmed <- x[, ncol(x)]
+      x %<>% select(c(Country.Region, Province.State, Lat, Long, confirmed)) %>%
+        mutate(txt=paste0(Country.Region, ' - ', Province.State, ': ', confirmed))
+      m <- leaflet(width=1200, height=800 ) %>% addTiles()
+      # circle marker (units in pixels)
+      m %>% addCircleMarkers(x$Long, x$Lat,
+                              # radius=2+log2(x$confirmed),
+                              radius=0.03*sqrt(x$confirmed),
+                              stroke=F,
+                              color='red', fillOpacity=0.3,
+                              popup=x$txt)
+      # world
+     
+        
+            })
+    
+ #________________________________________________VALUE BOX ___________________________________________________   
+    output$rate <- renderValueBox({
+     
+      cur_dat=Sys.Date()
+      valueBox(
+        value = data_evolution %>% filter(data_evolution$date=="2020-3-22",data_evolution$var=="confirmed") %>% select(value) %>% sum(na.rm=TRUE),
+        subtitle = "Confirmed Cases:",
+        icon = icon("area-chart"),width = 2,
+        color = "yellow"
+      )
+    })
+    output$rate1<- renderValueBox({
+      
+      
+      valueBox(
+        value = data_evolution %>% filter(data_evolution$date=="2020-3-22",data_evolution$var=="recovered") %>% select(value) %>% sum(na.rm=TRUE),
+        subtitle = "Recovered Cases:",
+        icon = icon("angle-double-down"),width = 2,
+        color = "blue"
+      )
+    })
+    output$rate2 <- renderValueBox({
+      
+      
+      valueBox(
+        value = data_evolution %>% filter(data_evolution$date=="2020-3-22",data_evolution$var=="deceased") %>% select(value) %>% sum(na.rm=TRUE),
+        subtitle = "Deceased:",
+        icon = icon("angle-double-up"),width = 2,
+        color = "red"
+      )
+    })
+    output$rate3 <- renderValueBox({
+      
+      
+      valueBox(
+        value = data_evolution %>% filter(data_evolution$date=="2020-3-22",data_evolution$var=="active") %>% select(value) %>% sum(na.rm=TRUE),
+        subtitle = "Active Cases:",
+        icon = icon("bed"),width = 2,
+        color = "green"
+      )
+    })
+  
+#______________________________________________________________PLOT___________________________________    
+    output$case_evolution_new <- renderPlotly({    
+    
+    
+    
+    data <- data %>%
+      group_by(date, var) %>% filter(date >"2020-06-11") %>%
+      summarise(new_cases = sum(new_cases, na.rm = T))
+    
+    
+    p <- plot_ly(data = data, x = ~date, y = ~new_cases, color = ~var, type = 'bar',colors=c("blue","red","green","yellow") )%>% layout(yaxis = list(title = "# Cases"),
+                                                                                                xaxis = list(title = "Date"))
+    })
+    output$Plot<-renderPlot({
+      data         <- data_evolution %>%
+        filter(date == current_date) %>% filter(`Country/Region` %in% input$caseEvolution_country)   %>%
+        pivot_wider(names_from = var, values_from = c(value, value_new))
+      data %>% 
+        group_by(`Country/Region`) %>% 
+        filter(date >'2020-02-22') %>% 
+        summarise(confirmed = sum(value_new_confirmed)) %>% 
+        arrange(desc(confirmed)) %>% 
+        head(10) %>% 
+        ggplot(aes(x = reorder(`Country/Region`, -confirmed), y = confirmed)) +
+        geom_bar(stat = "identity") +
+        labs(title = paste("Countries with the Most Confirmed Cases"), x = "Countries", y = "Confirmed Cases") +
+        geom_label(aes(y = confirmed, label = confirmed %>% scales::comma()), size = 2.5, vjust = 0.5)
+      
+    })
+    
+    
+    
+    #--------------------------------------------------PLOTING PART______________________________________
+    output$Plot1<-renderPlot({
+      data         <- data_evolution %>%
+        filter(date == current_date) %>%
+        pivot_wider(names_from = var, values_from = c(value, value_new))
+      data %>% 
+        group_by(`Country/Region`) %>% 
+        filter(date >'2020-02-22') %>% filter(`Country/Region` %in% input$caseEvolution_country)   %>%
+        summarise(confirmed = sum(value_new_recovered)) %>% 
+        arrange(desc(confirmed)) %>% 
+        head(10) %>% 
+        ggplot(aes(x = reorder(`Country/Region`, -confirmed), y = confirmed)) +
+        geom_bar(stat = "identity") +
+        labs(title = paste("Countries with the Most Recovered Cases"), x = "Countries", y = "Recovered Cases") +
+        geom_label(aes(y = confirmed, label = confirmed %>% scales::comma()), size = 2.5, vjust = 0.5)
+      
+    })
+    output$Plot2<-renderPlot({
+      data         <- data_evolution %>%
+        filter(date == current_date) %>%
+        pivot_wider(names_from = var, values_from = c(value, value_new))
+      data %>% 
+        group_by(`Country/Region`) %>% 
+        filter(date >'2020-02-22') %>% filter(`Country/Region` %in% input$caseEvolution_country)   %>%
+        summarise(confirmed = sum(value_new_deceased)) %>% 
+        arrange(desc(confirmed)) %>% 
+        head(10) %>% 
+        ggplot(aes(x = reorder(`Country/Region`, -confirmed), y = confirmed)) +
+        geom_bar(stat = "identity") +
+        labs(title = paste("Countries with the Most Deceased Cases"), x = "Countries", y = "Deceased Cases") +
+        geom_label(aes(y = confirmed, label = confirmed %>% scales::comma()), size = 2.5, vjust = 0.5)
+      
+    })
+    
+    
+    
+    
+    output$Plot3<-renderPlot({
+      
+      data         <- data_evolution %>%
+        filter(date == current_date) %>%
+        pivot_wider(names_from = var, values_from = c(value, value_new))
+      data %>% 
+        group_by(`Country/Region`) %>% 
+        filter(date >'2020-02-22') %>% filter(`Country/Region` %in% input$caseEvolution_country)   %>%
+        summarise(confirmed = sum(value_active)) %>% 
+        arrange(desc(confirmed)) %>% 
+        head(10) %>% 
+        ggplot(aes(x = reorder(`Country/Region`, -confirmed), y = confirmed)) +
+        geom_bar(stat = "identity") +
+        labs(title = paste("Countries with the Most Active Cases"), x = "Countries", y = "Active Cases") +
+        geom_label(aes(y = confirmed, label = confirmed %>% scales::comma()), size = 2.5, vjust = 0.5)
+      
+    })
+    
+    
+#_______________________________________________________________EXP______________________________________________________________________    
+    
+    
+    output$txt <- renderText({
+      icons <- paste(input$icons, collapse = ", ")
+      paste("You chose", icons)
+    })
+    
+    output$selectize_casesByCountries <- renderUI({
+      selectizeInput(
+        "caseEvolution_country",
+        label    = "Select Countries",
+        choices  = unique(data_evolution$`Country/Region`),
+        selected = "US",
+        multiple = TRUE
+      )
+    })
+    
+    #______________________________________________________________________________________________________________________________
+    
+    
+    output$plot_conf<-renderPlot({
+      
+      x<-data_confirmed_sub    
+      x$date=strptime(x$date, "%m/%d/%y")
+      x$date<-as.Date(x$date, "%m/%d/%Y")
+      a<-x %>% filter(`Country/Region`==input$caseEvolution_country)
+      a<-a %>% filter(date>input$start_date & date<input$end_date)
+      
+      ggplot(a, aes(x =date , y = confirmed)) +
+        geom_bar(fill="#7C4E07",
+          
+          stat = "identity", position = position_stack()
+        )+ggtitle(paste("Country :",input$caseEvolution_country)) 
+      
+    })
+    
+    output$plot_dece<-renderPlot({
+      
+      x<-data_deceased_sub    
+      x$date=strptime(x$date, "%m/%d/%y")
+      x$date<-as.Date(x$date, "%m/%d/%Y")
+      a<-x %>% filter(`Country/Region`==input$caseEvolution_country)
+      a<-a %>% filter(date>input$start_date & date<input$end_date)
+      
+      ggplot(a, aes(x =date , y = deceased)) +
+        geom_bar(fill="#E7B800",
+          
+          stat = "identity", position = position_stack()
+        )+ggtitle(paste("Country :",input$caseEvolution_country)) 
+    })
+    
+    
+    output$plot_reco<-renderPlot({
+      
+      x<-data_recovered_sub    
+      x$date=strptime(x$date, "%m/%d/%y")
+      x$date<-as.Date(x$date, "%m/%d/%Y")
+      a<-x %>% filter(`Country/Region`==input$caseEvolution_country)
+      a<-a %>% filter(date>input$start_date & date<input$end_date)
+      
+      ggplot(a, aes(x =date , y = recovered)) +
+        geom_bar(fill="#00AFBB",
+          
+          stat = "identity", position = position_stack()
+        )+ggtitle(paste("Country :",input$caseEvolution_country)) 
+    })
+    
+    output$casesByCountries <- renderUI({
+      selectizeInput(
+        "caseEvolution_country",
+        label    = "Select Countries",
+        choices  = unique(data_evolution$`Country/Region`),
+        selected="US",
+        multiple = TRUE
+      )
+    })
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    }
+
+# Run the application 
+shinyApp(ui = ui, server = server)  

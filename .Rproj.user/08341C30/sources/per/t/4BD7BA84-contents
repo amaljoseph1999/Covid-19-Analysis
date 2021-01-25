@@ -1,0 +1,21 @@
+library(shiny)
+library(shinydashboard)
+library(dashboardthemes)
+library(tidyverse)
+library(leaflet)
+library(plotly)
+library(DT)
+library(wbstats)
+
+
+#source("DownloadingFiles.R")
+source("DataProcessing.R")
+
+source("ui.R")
+
+#source("ui_new.R")
+
+source("server.R")
+
+# Run the application 
+shinyApp(ui = ui, server = server)

@@ -1,0 +1,24 @@
+{
+    "id": "5F5B6113",
+    "path": "~/Practice/23-11/app.R",
+    "project_path": null,
+    "type": "r_source",
+    "hash": "2330121217",
+    "contents": "",
+    "dirty": false,
+    "created": 1606658651857.0,
+    "source_on_save": false,
+    "relative_order": 10,
+    "properties": {
+        "cursorPosition": "92,28",
+        "scrollLine": "80"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1606667300,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1606667300437,
+    "read_only": false,
+    "read_only_alternatives": []
+}

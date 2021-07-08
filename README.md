@@ -30,7 +30,8 @@ The aim of this project is to visualize :
 
 # Data Collection:
 The data source used for this analysis is the 2019 Novel Coronavirus COVID-19 (2019-nCoV) Data Repository built by the Center for Systems Science and Engineering, Johns Hopkins University. They are 3 csv files that are auto updated daily so that we can work with the current data and visualize it. These 3 csv files are downloaded and saved as local files and then are loaded into R.
-Loading Data:
+## Loading Data:
+![image](https://user-images.githubusercontent.com/40909273/124859053-c9639080-dfcc-11eb-883d-d74510d8ec9a.png)
  
  
  
@@ -63,7 +64,9 @@ ggplot2 is a plotting package that makes it simple to create complex plots from 
 
 # Dashboard 
 Our Covid-19 Dashboard has a side bar navigation orientation that consists of 5 tabs as you can see in the picture below:
- 
+
+![image](https://user-images.githubusercontent.com/40909273/124859279-40008e00-dfcd-11eb-9cd6-dcad0f562dab.png)
+
 
 ## Overview Tab
 The above picture shows the Overview tab.
@@ -73,44 +76,25 @@ This tab consists of value boxes that shows the total confirmed, recovered, dece
 This tab consists of a Data table which summarizes all our datasets and shows us the most important columns that we took into consideration for our analysis and visualization. The Data Table consists of 15 columns and 190 rows.
 This table also consists of a search bar through which you can type the name of a particular country and filter out the data for that country.
  
+![image](https://user-images.githubusercontent.com/40909273/124859367-70482c80-dfcd-11eb-930d-801343220f59.png)
+
 
 
 
 ## Analysis Tab
 This Tab consists of 6 different plots depicting the all the information contained in the data table. It consists of a select bar which lets you select any number of countries (with a default of 10) and shows you the visualized data of the countries selected.
+![image](https://user-images.githubusercontent.com/40909273/124859485-ac7b8d00-dfcd-11eb-84f9-605454629299.png)
  
-1. 
-This bar chart shows the daily number of confirmed cases of the top 10 countries.
-
-2. 
-This bar chart shows the daily number of recovered cases for the top 10 countries of the world.
-3. 
-This chart shows us the daily number of deaths caused by covid-19 in the top 10 countries in the world.
-4. 
-This bar chart shows us the total number of active cases in the top 10 countries in the world.
-
-5. 
-This bar chart has a slider bar with which you can select between 1 to 30 different countries to compare the total number of cases per 100k of the population.
-6. 
-This bar chart also has a slider bar with which you can select between 1 to 30 different countries to compare where they stand with respect to the total number of confirmed covid-19 cases and the total number of deaths. In this chart you can see that USA has the greatest number of confirmed covid-19 cases and deaths, followed by India and Brazil.
-
+ ![image](https://user-images.githubusercontent.com/40909273/124859589-d46af080-dfcd-11eb-90ef-8b34e7e57fa6.png)
+ 
 ## Date Plot Tab
+
 This tab consists of two date-range tabs, one start date and one end date, to select the time duration of the plots you want to see. This tab also contains a select tab to select the countries for which you want to see the visualizations.
  
+![image](https://user-images.githubusercontent.com/40909273/124859792-20b63080-dfce-11eb-97ea-80c7e5031b23.png)
+![image](https://user-images.githubusercontent.com/40909273/124859932-6bd04380-dfce-11eb-995e-14de92c4b374.png)
 
 
- 
-This area graph shows the total confirmed cases of covid-19 from the time cases were recorded for USA.
- 
-
-This area graph shows the total number of active cases of covid-19 from the time cases were recorded for USA.
- 
-This area graph shows the total number of recovered cases of covid-19 from the time cases were recorded for USA.
- 
-
-This is a line chart that shows the gradual increase in Covid-19 cases for all the countries selected in the select bar.
-
-Correlation Tab
 ## Heatmap
  
 This is a heatmap showing the correlation between covid-19 cases and weather factors. Red color (-1) shows strong negative correlation and Blue color (+1) shows strong positive correlation. From the colors in the heatmap we can say that new cases and temperature perfect negative correlation and specific humidity and relative humidity shows perfect positive correlation and for wind speed it shows weak negative correlation.
@@ -121,6 +105,4 @@ In this table we can see that the correlation coefficient of new cases and tempe
 The histogram shows how the data is distributed. The red line does not form a bell shaped curve which indicates that our data doesn’t follow normal distribution except wind speed.
 From the scatter plot we can observe that the regression line goes from top left to bottom right for new cases vs temperature, which shows negative correlation. For both specific humidity and relative humidity with new cases the line goes from bottom left to top right which indicates positive correlation. For windspeed vs new cases, it is a horizontal line therefore shows no correlation.
 
-
-#Conclusion 
-From this project we’ve learnt that there is a strong correlation between humidity and covid-19 cases. However correlation between temperature and wind speed with covid-19 cases is very low. Through this, we can say that we can expect there to be an increase in covid-19 cases during winter seasons as humidity is more then.
+![image](https://user-images.githubusercontent.com/40909273/124859686-f82e3680-dfcd-11eb-8c79-81f4bf4933d6.png)
